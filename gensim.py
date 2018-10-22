@@ -5,46 +5,60 @@ should (among the others intermediate results) should result in printing 3 the m
 """
 import random
 import codecs
+from nltk.stem.porter import PorterStemmer
 import string
-# from nltk.stem.porter import PorterStemmer
+import gensim
+import time
+
+start = time.time()
 
 """
 1. Data loading and preprocessing
 In this part we load and process (clean, tokenize and stem) data.
 """
 
-# 1.0. Fix random numbers generator:
 random.seed(123)
 
-# 1.1 Open and load the file (it’s UTF-8 encoded) using codecs.
 file = codecs.open("assets/pg3300.txt", "r", "utf-8")
 lines = file.readlines()
 
 collection = []
+tokenized_collection = []
+paragraph = ''
+remove_paragraph = False
 
-# 1.2. Partition file into separate paragraphs. Paragraphs are text chunks separated by empty line.
-# 1.3. Remove (filter out) paragraphs containing the word “Gutenberg” (=headers and footers).
+translator = str.maketrans('', '', string.punctuation)
+stemmer = PorterStemmer()
+
 for i, line in enumerate(lines):
-    paragraph = ''
+    line_stripped = line.strip()
 
-    if line is '\n\n': # Breakpoint
-        # TODO: Not Working
-        print('Line %d is a breakpoint' % i)
+    if not line_stripped and paragraph:  # New paragraph
+        if remove_paragraph:  # Paragraph includes Gutenberg
+            remove_paragraph = False
+        else:  # Add paragraph to collection
+            collection.append(paragraph)  # Keeps a copy of original paragraphs
+            paragraph = paragraph.translate(translator)  # Remove punctuation
+            paragraph = paragraph.lower()  # Make lowercase
+            tokenized_collection.append(paragraph.split(' '))  # Splits paragraphs into list of words
+        paragraph = ''  # Reset paragraph
+    elif 'Gutenberg' in line:  # Header / footer
+        remove_paragraph = True
+    else:  # Add line to paragraph
+        paragraph += line_stripped
 
-        if paragraph is '':
-            collection.append(paragraph)
-        else:
-            print('Paragraph is a empty')
+for i, paragraph in enumerate(tokenized_collection):
+    for j, word in enumerate(paragraph):
+        tokenized_collection[i][j] = stemmer.stem(word)
 
-    elif 'Gutenberg' in line: # Header / footer
-        print('Line %d is a header/footer' % i)
-    else: # Paragraph
-        print('Line %d is a text line' % i)
-        paragraph += line
-
-
-print(collection)
-# collection = file.split("\n\n")
+"""
+2. Dictionary building
+In this part we filter (remove stopwords) and convert paragraphs into Bags-of-Words.
+"""
+dictionary = gensim.corpora.Dictionary('assets/common-english-words.txt')
 
 
-# new_collection = filter(lambda k: 'Gutenberg' in k, collection)
+
+
+end = time.time()
+print(end - start)
